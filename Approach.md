@@ -70,7 +70,7 @@ MMDevAPI.dll
 ---
 
 ## Dynamic Experimentation
-- Hooked common audio APIs (e.g., `waveOut*`) and attempted DLL injection / proxying for `dsound`, `winmm`, and `xaudio` families to observe calls and capture COM pointers.  
+- Hooked common audio APIs (e.g., `waveOut*`) and attempted DLL injection / proxying for `dsound`, `winmm`, and `xaudio` dlls to observe calls and capture COM pointers.  
 - Instrumented `CoCreateInstance` at startup and logged CLSIDs / created COM objects.  
   This revealed `IMMDeviceEnumerator` being instantiated, indicating use of MMDevice / WASAPI.
 
@@ -92,20 +92,3 @@ MMDevAPI.dll
    (sample rate, buffer size, channels).  
 4. Analyze captured buffers/parameters at the `IAudioClient` hook point to determine whether beeps come from  
    in-memory buffers, a streamed file, or are synthesized at runtime.  
-5. If necessary, instrument higher-level XAudio2 client interfaces to trace where audio buffers are supplied.
-
----
-
-## Deliverables Planned for Final Submission
-- Short write-up of the tracing process and findings (markdown).  
-- Minimal proof-of-concept hooking code (source) with brief build/run instructions.  
-- Console/log output demonstrating captured CLSIDs, COM interfaces, and audio-parameter data from the vtable hooks.  
-- Optional: annotated IDA screenshot(s) showing the traced space-bar handler and the function-pointer call site.
-
----
-
-## Notes / Rationale
-- Moving to vtable/COM hooking is driven by the presence of `IMMDeviceEnumerator` and the indirect call pattern in the space-bar path.  
-- Vtable hooks will expose the Core Audio pipeline state, which is not visible through standard file or waveOut API hooks.  
-- The approach minimizes intrusive instrumentation while still extracting key metadata (format, buffer, playback events)  
-  needed to identify the beep source.
