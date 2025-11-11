@@ -23,4 +23,14 @@ The goal with dll hijacking was to try to hook some functions that game imports 
 
 ## How is the beep sound detected?
 
-While the project is not yet finished I have managed to catch the COM object from which I will start vtable hooking to finally detect beep sound. Full details about my reverse engineering can be found in `Approach.md` file.
+While the project is not yet finished I have managed to catch the COM object from which I will start vtable hooking to finally detect beep sound. 
+
+1. Vtable-hooking IMMDeviceEnumerator methods
+(candidates: GetDevice, GetDefaultAudioEndpoint, EnumAudioEndpoints)
+to obtain an IMMDevice pointer.
+2. Vtable-hook IMMDevice::Activate to retrieve an IAudioClient pointer.
+3. Vtable-hook IAudioClient methods (likely Initialize) to capture audio format and buffer parameters
+(sample rate, buffer size, channels).
+4. Analyze captured buffers/parameters at the IAudioClient hook to determine the beep sound
+
+Full details about my reverse engineering can be found in `Approach.md` file.
