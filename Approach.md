@@ -1,4 +1,4 @@
-# Progress Update — Audio Tracing Home Task
+# Reverse Engineering Approach and Progress Update
 
 ## Summary
 Inspected the IAT and cross-references to locate where the beep audio originates (external file, embedded resource, or runtime audio subsystem).  
@@ -8,7 +8,7 @@ Moving from generic API hooking toward vtable / COM-object hooking to capture th
 ---
 
 ## Static Analysis using IDA Pro
-- Enumerated the IAT and checked cross-references for file, resource, input, and audio-related APIs.  
+- Enumerated the IAT table and checked cross-references in IDA for file, resource, input, and audio-related APIs.  
 - Formulated hypotheses: beep could be  
   a) read from a file,  
   b) embedded as a resource, or  
@@ -49,8 +49,8 @@ GetKeyState
 GetMessageW
 PeekMessageW
 DispatchMessageW
-SetWindowsHookExW (WH_KEYBOARD_LL)
-SetWindowLongPtrW (to replace WndProc)
+SetWindowsHookExW
+SetWindowLongPtrW
 
 Monitored window messages:
 WM_KEYDOWN, WM_KEYUP, WM_CHAR, WM_SYSKEYDOWN
@@ -69,7 +69,7 @@ MMDevAPI.dll
 
 ---
 
-## Dynamic Experimentation
+## Dynamic Analysis
 - Hooked common audio APIs (e.g., `waveOut*`) and attempted DLL injection / proxying for `dsound`, `winmm`, and `xaudio` dlls to observe calls and capture COM pointers.  
 - Instrumented `CoCreateInstance` at startup and logged CLSIDs / created COM objects.  
   This revealed `IMMDeviceEnumerator` being instantiated, indicating use of MMDevice / WASAPI.
@@ -78,7 +78,8 @@ MMDevAPI.dll
 
 ## Key Findings
 - The space-bar handler calls audio playback via an indirect function-pointer; there is no obvious direct call like `PlaySound` from `winmm.dll` .  
-- Only one small resource is loaded via resource APIs — unlikely to be the audio asset.  
+- Only one small resource is loaded via resource APIs — unlikely to be the audio asset.
+- Audio doesnt seem to be loaded from any external file
 - The binary constructs `IMMDeviceEnumerator` (MMDevice API), so the audio path is likely using Windows Core Audio / WASAPI rather than simple file APIs or legacy `waveOut` only.
 
 ---
