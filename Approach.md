@@ -3,11 +3,11 @@
 ## Summary
 Inspected the IAT and cross-references to locate where the beep audio originates (external file, embedded resource, or runtime audio subsystem).  
 Traced the function invoked by the space-bar handler and determined the binary uses Windows Core Audio (COM/WASAPI) rather than a simple file-based playback.  
-Moving from generic API hooking toward vtable / COM-object hooking to capture the audio pipeline state.
+Moving from generic API hooking toward vtable / COM-object hooking to capture the audio state.
 
 ---
 
-## What I Did (Static / IDA Reconnaissance)
+## Static Analysis using IDA Pro
 - Enumerated the IAT and checked cross-references for file, resource, input, and audio-related APIs.  
 - Formulated hypotheses: beep could be  
   a) read from a file,  
@@ -77,7 +77,7 @@ MMDevAPI.dll
 ---
 
 ## Key Findings
-- The space-bar handler calls audio playback via an indirect function-pointer; there is no obvious direct call like `PlaySound`.  
+- The space-bar handler calls audio playback via an indirect function-pointer; there is no obvious direct call like `PlaySound` from `winmm.dll` .  
 - Only one small resource is loaded via resource APIs — unlikely to be the audio asset.  
 - The binary constructs `IMMDeviceEnumerator` (MMDevice API), so the audio path is likely using Windows Core Audio / WASAPI rather than simple file APIs or legacy `waveOut` only.
 
