@@ -8,13 +8,13 @@ I have used GuidedHacking injector and I have checked checkbox `Auto Inject` whi
 
 ## How is the beep sound detected?
 
-While the project is not yet finished I have managed to catch the COM object from which I will start vtable hooking to finally detect beep sound. 
+The only thing to be added to finally detect beep sound is buffer content analysis on the captured buffers/parameters at IAudioClient vtable hooks. 
 
 1. Vtable-hooking IMMDeviceEnumerator methods
 (candidates: GetDevice, GetDefaultAudioEndpoint, EnumAudioEndpoints)
 to obtain an IMMDevice pointer.
 2. Vtable-hook IMMDevice::Activate to retrieve an IAudioClient pointer.
-3. Vtable-hook IAudioClient methods (likely Initialize) to capture audio format and buffer parameters
+3. Vtable-hook IAudioClient and IAudioRendererClient methods to capture audio format and buffer parameters
 (sample rate, buffer size, channels).
 4. Analyze captured buffers/parameters at the IAudioClient hook to determine the beep sound
 
