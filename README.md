@@ -19,3 +19,7 @@ to obtain an IMMDevice pointer.
 4. Analyze captured buffers/parameters at the IAudioClient hook to determine the beep sound
 
 Full details about my reverse engineering can be found in [Approach.md](https://github.com/bbugdigger/overwolf_beep/blob/main/Approach.md).
+
+
+https://github.com/user-attachments/assets/25392911-de6c-4613-a45a-397509c19b19
+
