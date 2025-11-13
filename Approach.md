@@ -1,9 +1,8 @@
-# Reverse Engineering Approach and Progress Update
+# Reverse Engineering Approach: Detecting Game Audio Events via WASAPI Hooking
 
-## Summary
-Inspected the IAT and cross-references to locate where the beep audio originates (external file, embedded resource, or runtime audio subsystem).  
-Traced the function invoked by the space-bar handler and determined the binary uses Windows Core Audio (COM/WASAPI) rather than a simple file-based playback.  
-Moving from generic API hooking toward vtable / COM-object hooking to capture the audio state.
+**Key Achievement**: Successfully identified the exact audio buffer containing the beep sound by hooking Windows Audio Session API (WASAPI) COM interfaces
+
+**What to Improve:** Analyzing buffer contents in real-time
 
 ---
 
@@ -13,7 +12,7 @@ Moving from generic API hooking toward vtable / COM-object hooking to capture th
   a) read from a file,  
   b) embedded as a resource, or  
   c) produced by an audio engine at runtime.  
-- Traced the code path triggered by the space bar; audio is invoked via an indirect (function-pointer) call.
+- Only one small resource is loaded via resource APIs — unlikely to be the audio asset.
 
 ---
 
@@ -38,6 +37,8 @@ SizeofResource
 ### Audio / COM Related
 ```
 CoCreateInstance (instrumented to log created COM objects)
+CoInitialize
+CoInitializeEx
 ```
 
 ### Keyboard / Input / Message Handling
@@ -66,7 +67,6 @@ xaudio2_redist9.dll
 MMDevAPI.dll
 ```
 
-
 ---
 
 ## Dynamic Analysis
@@ -74,22 +74,25 @@ MMDevAPI.dll
 - Instrumented `CoCreateInstance` at startup and logged CLSIDs / created COM objects.  
   This revealed `IMMDeviceEnumerator` being instantiated, indicating use of MMDevice / WASAPI.
 
----
+**Traced Spacebar Handler**:
+1. Located window message handling code (`WM_KEYDOWN` with `wParam == VK_SPACE`)
+2. Followed execution path from spacebar detection to audio invocation
+3. Audio playback is invoked via an **indirect function pointer call**, not a direct API call like `PlaySound()`
+4. That means that the games audio system uses abstraction layers (COM interfaces), making simple API hooking insufficient.
 
-## Key Findings
-- The space-bar handler calls audio playback via an indirect function-pointer; there is no obvious direct call like `PlaySound` from `winmm.dll` .  
-- Only one small resource is loaded via resource APIs — unlikely to be the audio asset.
-- Audio doesnt seem to be loaded from any external file
-- The binary constructs `IMMDeviceEnumerator` (MMDevice API), so the audio path is likely using Windows Core Audio / WASAPI rather than simple file APIs or legacy `waveOut` only.
+**COM Object Discovery**:
+1. During CoCreateInstance instrumentation I discovered that IMMDeviceEnumerator COM object was created during startup
+2. That confirm the hypothesis that the game audio system uses WASAPI interfaces
 
----
+**COM Interface Hooking:**
+COM interfaces are accessed through **vtables** (virtual function tables). Each COM object has a pointer to its vtable, which contains function pointers. So that means we need to perform vtable hooking (patching the function pointers in the vtable to redirect calls to our hooks)
 
-## Planned Next Steps (Technical Plan)
-1. **Vtable-hook** `IMMDeviceEnumerator` methods  
-   (candidates: `GetDevice`, `GetDefaultAudioEndpoint`, `EnumAudioEndpoints`)  
-   to obtain an `IMMDevice` pointer.  
-2. **Vtable-hook** `IMMDevice::Activate` to retrieve an `IAudioClient` pointer.  
-3. **Vtable-hook** `IAudioClient` methods (likely `Initialize`) to capture audio format and buffer parameters  
-   (sample rate, buffer size, channels).  
-4. Analyze captured buffers/parameters at the `IAudioClient` hook point to determine whether beeps come from  
-   in-memory buffers, a streamed file, or are synthesized at runtime.  
+**IMMDeviceEnumerator Hooking**
+Since in logs it was noticed that IMMDeviceEnumerator COM object was created I performed vtable hooking on following functions:
+- `GetDefaultAudioEndpoint` - Gets the default audio output device
+- `EnumAudioEndpoints` - Enumerates all audio devices
+- `GetDevice` - Gets a specific device by ID
+
+The objective was to capture `IMMDevice` pointer.
+
+**IMMDevice::Activate Hooking**
