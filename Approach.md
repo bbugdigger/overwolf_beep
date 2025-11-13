@@ -96,3 +96,41 @@ Since in logs it was noticed that IMMDeviceEnumerator COM object was created I p
 The objective was to capture `IMMDevice` pointer.
 
 **IMMDevice::Activate Hooking**
+
+When looking at the MSDN docs for IMMDevice::Activate we see that creates a COM object with the specified interface.
+By looking at the list of possible interfaces we see some interesting candidates for further hooking:
+```
+IID_IAudioClient
+IID_IDirectSound
+IID_IDirectSound8
+IID_IDirectSoundCapture
+IID_IDirectSoundCapture8
+```
+
+By looking at the logs to see which interfaces are created we see `IAudioClient`, so thats what we hook next!
+
+**IAudioClient Hooking**
+
+So the goal is not to monitor audio stream lifecycle and parameters from IAudioClient methods
+- `Initialize` - Sets up audio stream (buffer size, sample rate, channels)
+- `Start` - Begins audio playback
+- `Stop` - Stops audio playback
+- `GetService` - Retrieves related interfaces (like `IAudioRenderClient`)
+
+So by further looking at the logs and consulting with MSDN documentation we can infer that IAudioClient and IAudioRenderClient work together:
+IAudioClient::Initialize - Sets up the stream (buffer size, format, sample rate)
+IAudioClient::Start - Starts the audio playback
+IAudioRenderClient::GetBuffer - Gets a pointer to the buffer to WRITE audio data
+IAudioRenderClient::ReleaseBuffer - Releases the buffer after writing
+
+Also by looking at the logs we can see that there are 2 IAudioRenderClient instances continuously processing audio.
+
+***
+
+**Key Finiding** 
+
+No New Streams on Spacebar Press: Critically, there are NO new IAudioClient::Initialize or IAudioClient::Start calls after the spacebar press. That means that the beep sound is played on an existing stream.
+
+Now here lies a new problem. We're successfully hooking the buffer operations, but we can't tell which buffer contains the beep just by looking at addresses. Both streams are active all the time.
+
+Next Steps would be inspecting buffer contents! We need to analyze the actual audio data in the buffers to detect when the beep is written.
